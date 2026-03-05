@@ -230,7 +230,7 @@ const ContactPage = () => {
                     </div>
                     <div>
                       <h3 className={contactStyles.contactText}>Booking Hotline</h3>
-                      <p className={contactStyles.contactDetail}>+91 8299431275</p>
+                      <p className={contactStyles.contactDetail}>+91 6369610967</p>
                     </div>
                   </div>
                   
@@ -251,8 +251,8 @@ const ContactPage = () => {
                     </div>
                     <div>
                       <h3 className={contactStyles.contactText}>Main Theater Location</h3>
-                      <p className={contactStyles.contactDetail}>123 Cinema Street, Film City, Mumbai, FC 400001</p>
-                      <p className={contactStyles.contactSubDetail}>+4 other locations across the city</p>
+                      <p className={contactStyles.contactDetail}>123 Cinema Street, Film City, salem, FC 400001</p>
+                      
                     </div>
                   </div>
                 </div>
@@ -272,7 +272,7 @@ const ContactPage = () => {
                 </p>
                 <div className="flex items-center">
                   <div className={contactStyles.emergencyHotline}>
-                    HOTLINE: +91 8299431275
+                    HOTLINE: +91 6369610967
                   </div>
                   <span className={contactStyles.emergencyNote}>Available during showtimes</span>
                 </div>

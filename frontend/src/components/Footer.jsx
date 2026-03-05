@@ -192,19 +192,19 @@ const Footer = () => {
                 <div className={footerStyles.contactIconContainer}>
                   <Mail className={footerStyles.contactIcon} />
                 </div>
-                <span className={footerStyles.contactText}>contact@hexagonsservices.com</span>
+                <span className={footerStyles.contactText}>sudhan@gmail.com</span>
               </li>
               <li className={footerStyles.contactItem}>
                 <div className={footerStyles.contactIconContainer}>
                   <Phone className={footerStyles.contactIcon} />
                 </div>
-                <span className={footerStyles.contactText}>+91 8299431275</span>
+                <span className={footerStyles.contactText}>+91 6369610967</span>
               </li>
               <li className={footerStyles.contactItem}>
                 <div className={footerStyles.contactIconContainer}>
                   <MapPin className={footerStyles.contactIcon} />
                 </div>
-                <span className={footerStyles.contactText}>Lucknow, India</span>
+                <span className={footerStyles.contactText}>salem, India</span>
               </li>
             </ul>
           </div>
@@ -222,15 +222,7 @@ const Footer = () => {
           {/* Center: Designed by (plain text) + Hexagon Digital Services (link only) */}
           <div className={footerStyles.designedBy}>
             <span className={footerStyles.designedByText}>Designed by</span>
-            <a
-              href="https://hexagondigitalservices.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={footerStyles.designedByLink}
-              aria-label="Hexagon Digital Services"
-            >
-              Hexagon Digital Services
-            </a>
+           <p>sudhan</p>
           </div>
           
           <div className={footerStyles.policyLinks}>
