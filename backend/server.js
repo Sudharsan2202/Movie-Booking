@@ -9,7 +9,7 @@ import bookingRouter from './routes/bookingRouter.js';
 
 
 const app = express();
-const port = 5000;
+
 
 // Middleware
 app.use(cors())
@@ -32,6 +32,6 @@ app.get('/', (req, res) => {
     res.send('API Working');
 });
 
-app.listen(port, () => {
-    console.log(`Server Started on http://localhost:${port}`);
+app.listen(process.env.port, () => {
+    console.log(`Server Started on ${process.env.port}`);
 });
