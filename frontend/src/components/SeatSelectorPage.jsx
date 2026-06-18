@@ -9,6 +9,7 @@ import {
   Ticket,
   CreditCard,
   Film,
+  Clock,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { seatSelectorHStyles } from "../assets/dummyStyles";
@@ -34,7 +35,7 @@ const to24Hour = (timeStr = "00:00", ampm = "") => {
   const a = (ampm || "").toUpperCase();
   if (a === "AM" && h === 12) h = 0;
   if (a === "PM" && h !== 12) h += 12;
-  return `${String(h).padStart(2, "0")}:${m}`;
+  return `${String(h).padStart(2, "00")}:${m}`;
 };
 
 const slotToISO = (slot) => {
@@ -71,6 +72,16 @@ const sameMinute = (a, b) => {
   return da.getTime() === db.getTime();
 };
 
+// ─── NEW: returns true when booking should be blocked ───────────────────────
+const CUTOFF_MINUTES = 10;
+const checkBookingClosed = (isoStr) => {
+  if (!isoStr) return false;
+  const showtime = new Date(isoStr);
+  if (isNaN(showtime)) return false;
+  return Date.now() >= showtime.getTime() - CUTOFF_MINUTES * 60 * 1000;
+};
+// ────────────────────────────────────────────────────────────────────────────
+
 /* component */
 export default function SeatSelectorPage() {
   const { id, slot } = useParams();
@@ -84,6 +95,14 @@ export default function SeatSelectorPage() {
   const [selected, setSelected] = useState(new Set());
   const [bookingLoading, setBookingLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(Boolean(getStoredToken()));
+
+  // ─── NEW: live ticker so the cutoff triggers automatically ──────────────
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 30_000); // recheck every 30s
+    return () => clearInterval(timer);
+  }, []);
+  // ────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const onStorage = () => setIsLoggedIn(Boolean(getStoredToken()));
@@ -167,25 +186,28 @@ export default function SeatSelectorPage() {
     return null;
   }, [slotsSource, slotKey]);
 
-  // Resolve auditorium name from slot (slot-level), then movie (backend), then legacy fields, then fallback
+  // Resolve auditorium name
   const audiName = useMemo(() => {
-    // slot-level auditorium (preferred)
     if (slotObj && slotObj.auditorium && String(slotObj.auditorium).trim())
       return String(slotObj.auditorium).trim();
-    // older alias 'audi' on slotObj
     if (slotObj && slotObj.audi && String(slotObj.audi).trim())
       return String(slotObj.audi).trim();
-    // movie-level auditorium from backend
     if (movie && movie.auditorium && String(movie.auditorium).trim())
       return String(movie.auditorium).trim();
-    // fallback to movie.audi or movie.hall etc (legacy)
     if (movie && movie.audi && String(movie.audi).trim())
       return String(movie.audi).trim();
     if (movie && movie.hall && String(movie.hall).trim())
       return String(movie.hall).trim();
-    // default fallback
     return "Audi 1";
   }, [slotObj, movie]);
+
+  // ─── NEW: derive isBookingClosed from slotObj / slotKey ─────────────────
+  const isBookingClosed = useMemo(() => {
+    const isoStr = slotObj?._iso ?? slotKey;
+    return checkBookingClosed(isoStr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotObj, slotKey]);
+  // ────────────────────────────────────────────────────────────────────────
 
   /* validate showtime */
   useEffect(() => {
@@ -252,7 +274,6 @@ export default function SeatSelectorPage() {
       else if (Array.isArray(data)) items = data;
       else if (Array.isArray(data.items)) items = data.items;
       else if (Array.isArray(data.bookings)) items = data.bookings;
-      // collect paid seats for same-minute & same-audi
       const paidSeats = [];
       for (const b of items) {
         const bShow = b.showtime || b.slot || b.time || b.datetime || b.date;
@@ -358,7 +379,6 @@ export default function SeatSelectorPage() {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
-    // Recreate poll whenever mid/slotKey/audiName/slotObj changes
     pollRef.current = setInterval(
       () => fetchOccupied({ fallbackToLocal: false }),
       8000
@@ -380,6 +400,14 @@ export default function SeatSelectorPage() {
   }, [loading, movie, navigate]);
 
   const toggleSeat = (idRaw) => {
+    // ─── NEW: block seat toggle when booking is closed ───────────────────
+    if (isBookingClosed) {
+      toast.error(
+        `Booking is closed — seats cannot be selected within ${CUTOFF_MINUTES} minutes of showtime.`
+      );
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────
     const id = normalizeSeatId(idRaw);
     if (!id) return;
     if (booked.has(id)) {
@@ -392,10 +420,20 @@ export default function SeatSelectorPage() {
       return next;
     });
   };
+
   const clearSelection = () => setSelected(new Set());
   const basePrice = movie?.seatPrices?.standard ?? movie?.price ?? 0;
 
   const confirmBooking = async () => {
+    // ─── NEW: hard block if within cutoff window ─────────────────────────
+    if (isBookingClosed) {
+      toast.error(
+        `Booking is closed — cannot book within ${CUTOFF_MINUTES} minutes of showtime.`
+      );
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────
+
     if (selected.size === 0) {
       toast.error("Select at least one seat.");
       return;
@@ -517,6 +555,35 @@ export default function SeatSelectorPage() {
     <div className={seatSelectorHStyles.pageContainer}>
       <style>{seatSelectorHStyles.customCSS}</style>
       <div className={seatSelectorHStyles.mainContainer}>
+
+        {/* ─── NEW: Booking Closed Banner ──────────────────────────────────── */}
+        {isBookingClosed && (
+          <div
+            style={{
+              background: "linear-gradient(90deg, #7c1d1d, #991b1b)",
+              border: "1px solid #ef4444",
+              borderRadius: 10,
+              padding: "12px 20px",
+              marginBottom: 16,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              color: "#fecaca",
+              fontWeight: 600,
+              fontSize: 14,
+              boxShadow: "0 4px 18px rgba(239,68,68,0.25)",
+            }}
+          >
+            <Clock size={18} color="#f87171" />
+            <span>
+              Online booking is closed — seats can no longer be reserved within{" "}
+              <strong>{CUTOFF_MINUTES} minutes</strong> of showtime. Please
+              purchase at the counter.
+            </span>
+          </div>
+        )}
+        {/* ─────────────────────────────────────────────────────────────────── */}
+
         {/* Header */}
         <div
           className={seatSelectorHStyles.headerContainer}
@@ -667,14 +734,25 @@ export default function SeatSelectorPage() {
                           <button
                             key={id}
                             onClick={() => toggleSeat(id)}
-                            disabled={isBooked}
+                            // ─── NEW: also disable individual seats when closed ───
+                            disabled={isBooked || isBookingClosed}
+                            // ─────────────────────────────────────────────────────
                             className={cls}
                             title={
-                              isBooked
+                              isBookingClosed
+                                ? `Booking closed — within ${CUTOFF_MINUTES} min of showtime`
+                                : isBooked
                                 ? `Seat ${id} - Already Booked (paid)`
                                 : `Seat ${id} (${row.type}) - ${priceTitle}`
                             }
                             aria-pressed={isSelected}
+                            // ─── NEW: dim seats when booking is closed ────────────
+                            style={
+                              isBookingClosed && !isBooked
+                                ? { opacity: 0.4, cursor: "not-allowed" }
+                                : undefined
+                            }
+                            // ─────────────────────────────────────────────────────
                           >
                             <div className={seatSelectorHStyles.seatContent}>
                               {row.type === "recliner" ? (
@@ -751,13 +829,42 @@ export default function SeatSelectorPage() {
                 ) : (
                   <div className={seatSelectorHStyles.emptyState}>
                     <div className={seatSelectorHStyles.emptyStateTitle}>
-                      No seats selected
+                      {isBookingClosed
+                        ? "Booking is closed"
+                        : "No seats selected"}
                     </div>
                     <div className={seatSelectorHStyles.emptyStateSubtitle}>
-                      Select seats from the grid to continue
+                      {isBookingClosed
+                        ? `Online booking closes ${CUTOFF_MINUTES} minutes before showtime`
+                        : "Select seats from the grid to continue"}
                     </div>
                   </div>
                 )}
+
+                {/* ─── NEW: Closed warning above action buttons ──────────── */}
+                {isBookingClosed && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      background: "rgba(127,29,29,0.4)",
+                      border: "1px solid #b91c1c",
+                      borderRadius: 8,
+                      padding: "10px 14px",
+                      color: "#fca5a5",
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Clock size={15} color="#f87171" />
+                    <span>
+                      Booking closed — {CUTOFF_MINUTES} min cutoff reached.
+                      Visit the counter.
+                    </span>
+                  </div>
+                )}
+                {/* ────────────────────────────────────────────────────────── */}
 
                 <div className={seatSelectorHStyles.actionButtons}>
                   <button
@@ -769,8 +876,17 @@ export default function SeatSelectorPage() {
                   </button>
                   <button
                     onClick={confirmBooking}
-                    disabled={bookingLoading || selectedCount === 0}
+                    // ─── NEW: also disabled when booking is closed ───────────
+                    disabled={
+                      bookingLoading || selectedCount === 0 || isBookingClosed
+                    }
+                    // ────────────────────────────────────────────────────────
                     className={seatSelectorHStyles.confirmButton}
+                    style={
+                      isBookingClosed
+                        ? { opacity: 0.5, cursor: "not-allowed" }
+                        : undefined
+                    }
                   >
                     {bookingLoading ? "Booking..." : "Confirm Booking"}
                   </button>
@@ -825,6 +941,21 @@ export default function SeatSelectorPage() {
                 <div className={seatSelectorHStyles.pricingNote}>
                   All prices include taxes. No hidden charges.
                 </div>
+                {/* ─── NEW: pricing note about cutoff ──────────────────────── */}
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#f87171",
+                    marginTop: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  <Clock size={11} />
+                  Online booking closes {CUTOFF_MINUTES} min before showtime.
+                </div>
+                {/* ─────────────────────────────────────────────────────────── */}
               </div>
             </div>
           </div>

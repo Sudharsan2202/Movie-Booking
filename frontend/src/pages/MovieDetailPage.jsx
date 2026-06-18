@@ -25,6 +25,16 @@ const ROWS = [
 ];
 const TOTAL_SEATS = ROWS.reduce((s, r) => s + r.count, 0);
 
+// ── NEW: 10-minute booking cutoff ───────────────────────────────────────────
+const CUTOFF_MINUTES = 10;
+const isShowtimeClosed = (isoStr) => {
+  if (!isoStr) return false;
+  const showtime = new Date(isoStr);
+  if (isNaN(showtime.getTime())) return false;
+  return Date.now() >= showtime.getTime() - CUTOFF_MINUTES * 60 * 1000;
+};
+// ────────────────────────────────────────────────────────────────────────────
+
 const FallbackAvatar = ({ className = "w-12 h-12" }) => (
   <div
     className={`${className} bg-gray-700 rounded-full flex items-center justify-center text-sm text-gray-300`}
@@ -257,6 +267,14 @@ export default function MovieDetailPage() {
   const [selectedTime, setSelectedTime] = useState(null);
   const [bookedMap, setBookedMap] = useState({});
 
+  // ── NEW: ticker so "Closed" status updates live without a page refresh ──
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  // ──────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     let mounted = true;
     (async function fetchMovie() {
@@ -389,15 +407,80 @@ export default function MovieDetailPage() {
       });
   }, [movie]);
 
+  // ── NEW: auto-select the next available (non-closed) showtime, and
+  // auto-jump to the next day if every showtime on the current day has
+  // closed. Re-runs on the 30s ticker so it self-corrects as time passes. ──
   useEffect(() => {
     if (!showtimeDays.length) {
       setSelectedDay(0);
       setSelectedTime(null);
       return;
     }
-    setSelectedDay((cur) => (cur >= 0 && cur < showtimeDays.length ? cur : 0));
-    setSelectedTime(null);
+
+    // start looking from whichever day is currently selected (clamped),
+    // falling back to day 0 if it's out of range (e.g. data just loaded)
+    const startDay =
+      selectedDay >= 0 && selectedDay < showtimeDays.length ? selectedDay : 0;
+
+    let foundDayIndex = -1;
+    let foundShowtime = null;
+
+    for (let offset = 0; offset < showtimeDays.length; offset++) {
+      const dayIndex = (startDay + offset) % showtimeDays.length;
+      const day = showtimeDays[dayIndex];
+      const nextOpen = (day.showtimes || []).find(
+        (st) => !isShowtimeClosed(st.datetime)
+      );
+      if (nextOpen) {
+        foundDayIndex = dayIndex;
+        foundShowtime = nextOpen;
+        break;
+      }
+    }
+
+    if (foundDayIndex === -1) {
+      // every showtime across every day has closed — keep current day,
+      // clear selection, let the "no showtimes" / closed UI take over
+      setSelectedDay(startDay);
+      setSelectedTime(null);
+      return;
+    }
+
+    setSelectedDay(foundDayIndex);
+    // only auto-set selectedTime if nothing is currently selected, or the
+    // currently selected time has since closed — don't yank a still-valid
+    // manual selection away from the user
+    setSelectedTime((cur) => {
+      if (cur && !isShowtimeClosed(cur)) return cur;
+      return foundShowtime.datetime;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showtimeDays]);
+
+  // ── NEW: re-validate every 30s (ticker-driven) in case the selected
+  // showtime closes while the user is idle on the page ──────────────────
+  useEffect(() => {
+    if (!selectedTime) return;
+    if (!isShowtimeClosed(selectedTime)) return;
+
+    // currently selected time just closed — find the next open one
+    for (let offset = 0; offset < showtimeDays.length; offset++) {
+      const dayIndex = (selectedDay + offset) % showtimeDays.length;
+      const day = showtimeDays[dayIndex];
+      const nextOpen = (day?.showtimes || []).find(
+        (st) => !isShowtimeClosed(st.datetime)
+      );
+      if (nextOpen) {
+        setSelectedDay(dayIndex);
+        setSelectedTime(nextOpen.datetime);
+        toast.info("That showtime closed — moved you to the next available one.");
+        return;
+      }
+    }
+    // nothing open anywhere — clear selection
+    setSelectedTime(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
 
   useEffect(() => {
     let mounted = true;
@@ -507,20 +590,39 @@ export default function MovieDetailPage() {
       : `/movies/${mid}/seat-selector/${key}`;
   };
   const handleTimeSelect = (datetime) => {
+    // ── NEW: guard against selecting a showtime that just closed ─────────
+    if (isShowtimeClosed(datetime)) {
+      toast.error(
+        `Booking is closed for this showtime — online booking stops ${CUTOFF_MINUTES} minutes before it starts.`
+      );
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────
     setSelectedTime(datetime);
     navigate(
       buildSeatSelectorPath(movie._id || movie.id || movieIdParam, datetime)
     );
   };
   const handleBookNow = () => {
-    if (selectedTime)
-      navigate(
-        buildSeatSelectorPath(
-          movie._id || movie.id || movieIdParam,
-          selectedTime
-        )
+    if (!selectedTime) {
+      toast.error("Please select a showtime first");
+      return;
+    }
+    // ── NEW: re-check at click time (in case time passed while idle) ─────
+    if (isShowtimeClosed(selectedTime)) {
+      toast.error(
+        `Booking is closed for this showtime — online booking stops ${CUTOFF_MINUTES} minutes before it starts.`
       );
-    else toast.error("Please select a showtime first");
+      setSelectedTime(null);
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────
+    navigate(
+      buildSeatSelectorPath(
+        movie._id || movie.id || movieIdParam,
+        selectedTime
+      )
+    );
   };
 
   const getBookedCountFor = (datetime, audi = "Audi 1") => {
@@ -683,7 +785,11 @@ export default function MovieDetailPage() {
                       key={day.date}
                       onClick={() => {
                         setSelectedDay(index);
-                        setSelectedTime(null);
+                        // ── NEW: auto-pick the first open showtime on this day ──
+                        const firstOpen = (day.showtimes || []).find(
+                          (st) => !isShowtimeClosed(st.datetime)
+                        );
+                        setSelectedTime(firstOpen ? firstOpen.datetime : null);
                       }}
                       className={`${movieDetailHStyles.dayButton} ${
                         selectedDay === index
@@ -717,6 +823,10 @@ export default function MovieDetailPage() {
                       showtime.audi
                     );
                     const isSoldOut = bookedCount >= TOTAL_SEATS;
+                    // ── NEW: per-showtime closed check ──────────────────
+                    const isClosed = isShowtimeClosed(showtime.datetime);
+                    const isDisabled = isSoldOut || isClosed;
+                    // ─────────────────────────────────────────────────────
                     return (
                       <button
                         key={index}
@@ -729,18 +839,38 @@ export default function MovieDetailPage() {
                         title={
                           isSoldOut
                             ? "All seats booked for this showtime"
+                            : isClosed
+                            ? `Booking closed — within ${CUTOFF_MINUTES} minutes of showtime`
                             : `Seats available: ${Math.max(
                                 0,
                                 TOTAL_SEATS - bookedCount
                               )}`
                         }
-                        aria-disabled={isSoldOut}
-                        disabled={isSoldOut}
+                        aria-disabled={isDisabled}
+                        disabled={isDisabled}
+                        // ── NEW: dim closed (but not sold out) buttons ──
+                        style={
+                          isClosed && !isSoldOut
+                            ? { opacity: 0.55, cursor: "not-allowed" }
+                            : undefined
+                        }
                       >
                         <span>{showtime.time}</span>
                         {isSoldOut && (
                           <span className={movieDetailHStyles.soldOutBadge}>
                             Sold Out
+                          </span>
+                        )}
+                        {/* ── NEW: Closed badge (only if not already sold out) ── */}
+                        {!isSoldOut && isClosed && (
+                          <span
+                            className={movieDetailHStyles.soldOutBadge}
+                            style={{
+                              background:
+                                "linear-gradient(90deg,#92400e,#b45309)",
+                            }}
+                          >
+                            Closed
                           </span>
                         )}
                       </button>
@@ -759,8 +889,17 @@ export default function MovieDetailPage() {
                     onClick={handleBookNow}
                     className={movieDetailHStyles.bookNowButton}
                     aria-label="Proceed to seat selection"
+                    // ── NEW: also disable Proceed button if it closed while idle ──
+                    disabled={isShowtimeClosed(selectedTime)}
+                    style={
+                      isShowtimeClosed(selectedTime)
+                        ? { opacity: 0.5, cursor: "not-allowed" }
+                        : undefined
+                    }
                   >
-                    Proceed to Seat Selection
+                    {isShowtimeClosed(selectedTime)
+                      ? "Booking Closed"
+                      : "Proceed to Seat Selection"}
                   </button>
                 </div>
               )}
