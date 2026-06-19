@@ -16,7 +16,7 @@ import { toast } from "react-toastify";
 import { movieDetailHStyles } from "../assets/dummyStyles";
 
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://movie-bookings-haru.onrender.com";
 
 const ROWS = [
   { id: "A", type: "standard", count: 8 },

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { moviesStyles } from "../assets/dummyStyles";
 
 
- const API_BASE = "http://localhost:5000";
+ const API_BASE = "https://movie-bookings-haru.onrender.com";
  const PLACEHOLDER = "https://via.placeholder.com/400x600?text=No+Poster";
 
 function getUploadUrl(maybe) {
