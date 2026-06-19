@@ -13,7 +13,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { loginStyles } from "../assets/dummyStyles";
 
 // API base (points to /api/auth)
-const API_BASE = "https://movie-bookings-haru.onrender.com";
+const API_BASE = "https://movie-bookings-haru.onrender.com/api/auth";
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
