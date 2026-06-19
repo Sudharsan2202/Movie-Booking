@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { styles5, customStyles } from "../assets/dummyStyles";
 
-const API_BASE = "https://movie-bookings-haru.onrender.com";
+const API_BASE = "https://movie-bookings-haru.onrender.com"; 
 
 // ---------- helpers ----------
 function normalizeApiBase(b) {
