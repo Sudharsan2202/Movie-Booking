@@ -10,18 +10,15 @@ import {
   Menu,
   LogOut,
   Clapperboard,
-  Ticket, 
-  Sun, Moon,// added for Bookings icon
+  Ticket, // added for Bookings icon
 } from "lucide-react";
 import { navbarStyles, navbarCSS } from '../assets/dummyStyles';
-import { useTheme } from "../context/ThemeContext"; 
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState("");
-  const { isDark, toggleTheme } = useTheme();
 
   const menuRef = useRef(null);
 
@@ -114,25 +111,6 @@ const Navbar = () => {
     { id: "bookings", label: "Bookings", icon: Ticket, path: "/bookings" },
   ];
 
-   const ThemeToggleBtn = () => (
-    <button
-      onClick={toggleTheme}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className={`flex items-center gap-1.5 px-3 py-2 rounded-full border transition-all duration-300 ${
-        isDark
-          ? "bg-gray-800 border-gray-700 text-yellow-400 hover:bg-gray-700"
-          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-100"
-      }`}
-    >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      <span className="text-xs font-medium hidden sm:inline">
-        {isDark ? "Light" : "Dark"}
-      </span>
-    </button>
-  );
-}
-
-
   return (
     <nav
       className={`${navbarStyles.nav.base} ${
@@ -140,7 +118,7 @@ const Navbar = () => {
       }`}
       aria-label="Primary navigation"
     >
-      <div className={navbarStyles.container}> </div>
+      <div className={navbarStyles.container}>
         {/* Logo */}
         <div className={navbarStyles.logoContainer}>
           <div className={navbarStyles.logoIconContainer}>
@@ -177,29 +155,6 @@ const Navbar = () => {
             })}
           </div>
         </div>
-
-        {/* Theme Toggle */}
-          <ThemeToggleBtn />
-
-          {/* Auth Section */}
-          <div className={navbarStyles.authSection}>
-            <div className={navbarStyles.desktopAuth}>
-              {isLoggedIn ? (
-                <button
-                  onClick={handleLogout}
-                  className={navbarStyles.logoutButton}
-                  title={userEmail || "Logout"}
-                >
-                  <LogOut className={navbarStyles.authIcon} />
-                  <span>Logout</span>
-                </button>
-              ) : (
-                <a href="/login" className={navbarStyles.loginButton}>
-                  <User className={navbarStyles.authIcon} />
-                  <span>Login</span>
-                </a>
-              )}
-            </div>
 
         {/* Right Section */}
         <div className={navbarStyles.rightSection}>
@@ -300,10 +255,6 @@ const Navbar = () => {
                   </NavLink>
                 );
               })}
-               {/* Theme toggle inside mobile menu */}
-              <div className="pt-2 border-t border-gray-800 mt-1">
-                <ThemeToggleBtn />
-              </div>
 
               <div className={navbarStyles.mobileAuthSection}>
                 {isLoggedIn ? (
@@ -335,8 +286,7 @@ const Navbar = () => {
 
       <style jsx>{navbarCSS}</style>
     </nav>
-  )
-
-
+  );
+};
 
 export default Navbar;
