@@ -288,5 +288,28 @@ const Navbar = () => {
     </nav>
   );
 };
+// Example: in Navbar.jsx
+import { useTheme } from "../context/ThemeContext";
+import { getTheme } from "../assets/themeConfig";
+import ThemeToggle from "./ThemeToggle";
 
+export default function Navbar() {
+  const { isDark } = useTheme();
+  const theme = getTheme(isDark);
+
+  return (
+    <nav className={`${navbarStyles.nav.base} ${
+      scrolled ? `${navbarStyles.nav.scrolled} ${theme.navBgScrolled}`
+               : `${navbarStyles.nav.notScrolled} ${theme.navBg}`
+    }`}>
+      {/* ... existing content ... */}
+
+      {/* Add the toggle button to the right section */}
+      <div className={navbarStyles.rightSection}>
+        <ThemeToggle />
+        {/* ... auth buttons ... */}
+      </div>
+    </nav>
+  );
+}
 export default Navbar;

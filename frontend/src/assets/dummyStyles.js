@@ -1506,3 +1506,82 @@ export const movieDetailHStyles = {
     }
   `
 };
+
+// src/assets/themeConfig.js
+
+export const darkTheme = {
+  // Page backgrounds
+  pageBg: "bg-black",
+  cardBg: "bg-gradient-to-b from-gray-900 to-black",
+  surfaceBg: "bg-gray-900",
+  inputBg: "bg-gray-800/60",
+
+  // Text
+  textPrimary: "text-white",
+  textSecondary: "text-gray-300",
+  textMuted: "text-gray-400",
+  textAccent: "text-red-400",
+
+  // Borders
+  border: "border-gray-700",
+  borderAccent: "border-red-800",
+
+  // Nav
+  navBg: "bg-black",
+  navBgScrolled: "bg-black/85",
+  navLink: "text-gray-300",
+  navLinkActive: "text-white",
+
+  // Cards
+  movieCard: "bg-gradient-to-b from-gray-900 to-black border-red-800",
+  bookingCard: "bg-gradient-to-b from-gray-900 to-black border-red-800",
+
+  // Inputs / forms
+  inputField: "bg-gray-800/60 border-gray-700 text-white placeholder-gray-500",
+  selectField: "bg-gray-700 border-gray-600 text-white",
+  textareaField: "bg-gray-700 border-gray-600 text-white",
+
+  // Footer
+  footerBg: "bg-black border-red-800",
+  footerText: "text-gray-400",
+};
+
+export const lightTheme = {
+  // Page backgrounds
+  pageBg: "bg-gray-50",
+  cardBg: "bg-gradient-to-b from-white to-gray-100",
+  surfaceBg: "bg-white",
+  inputBg: "bg-white/80",
+
+  // Text
+  textPrimary: "text-gray-900",
+  textSecondary: "text-gray-600",
+  textMuted: "text-gray-500",
+  textAccent: "text-red-600",
+
+  // Borders
+  border: "border-gray-200",
+  borderAccent: "border-red-300",
+
+  // Nav
+  navBg: "bg-white/90",
+  navBgScrolled: "bg-white/95",
+  navLink: "text-gray-600",
+  navLinkActive: "text-gray-900",
+
+  // Cards
+  movieCard: "bg-white border-red-200 shadow-md",
+  bookingCard: "bg-white border-red-200 shadow-lg",
+
+  // Inputs / forms
+  inputField: "bg-white border-gray-300 text-gray-900 placeholder-gray-400",
+  selectField: "bg-white border-gray-300 text-gray-900",
+  textareaField: "bg-white border-gray-300 text-gray-900",
+
+  // Footer
+  footerBg: "bg-gray-100 border-red-200",
+  footerText: "text-gray-600",
+};
+
+// Helper — call this wherever you need theme-aware classes
+export const getTheme = (isDark) => isDark ? darkTheme : lightTheme;
